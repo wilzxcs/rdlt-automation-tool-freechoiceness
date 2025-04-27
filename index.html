@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDLT Analyzer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Σ-distinct PCS Free-choice Verification</h1>
+    
+    <div class="section">
+        <h2>Input</h2>
+        <input type="file" id="fileInput" accept=".txt">
+        <div id="fileInfo"></div>
+    </div>
+
+    <div id="phase1Results"></div>
+    
+    <div class="section">
+        <h2>Basic Analysis</h2>
+        <h3>Adjacency Matrix</h3>
+        <table border="1">
+            <thead id="matrixHead"></thead>
+            <tbody id="matrixBody"></tbody>
+        </table>
+        
+        <!-- <h3>Siblings with Same Parents</h3> -->
+        <ul id="siblingList"></ul>
+        
+        <!-- <h3>Sibling Constraints Check</h3> -->
+        <div id="constraintCheckResults"></div>
+        
+        <!-- <h3>Back Edges</h3> -->
+        <ul id="backEdgeList"></ul>
+    </div>
+    
+    <div class="section">
+        <h2>Vertex Analysis</h2>
+        <input type="text" id="vertexInput" placeholder="Enter vertex to analyze">
+        <button id="analyzeBtn">Analyze Vertex</button>
+        
+        <h3>Maximal Antecedent Set</h3>
+        <ul id="antecedentList"></ul>
+        
+        <h3>Maximal Consequent Set</h3>
+        <ul id="consequentList"></ul>
+        
+        <h3>POS Set</h3>
+        <ul id="posList"></ul>
+    </div>
+
+
+
+    <script src="free-choiceness.js"></script>
+    <script src="cycle.js"></script>
+    <script src="ui_handler.js"></script>
+</body>
+</html>
