@@ -68,13 +68,13 @@ class InputRDLT {
     });
     this.Vertices_List = Array.from(uniqueVertices);
 
-    console.log("vertices: ",this.Vertices_List);
-    console.log("arcs: ",this.Arcs_List);
-    console.log("cAttr: ",this.C_attribute_list);
-    console.log("lAttr: ",this.L_attribute_list);
-    console.log("Centers: ",this.Centers_list);
-    console.log("IN: ",this.In_list);
-    console.log("OUT: ",this.Out_list);
+    console.log("vertices: ", this.Vertices_List);
+    console.log("arcs: ", this.Arcs_List);
+    console.log("cAttr: ", this.C_attribute_list);
+    console.log("lAttr: ", this.L_attribute_list);
+    console.log("Centers: ", this.Centers_list);
+    console.log("IN: ", this.In_list);
+    console.log("OUT: ", this.Out_list);
 
     // Build adjacency matrix and perform analyses
     this.constructAdjacencyMatrix();
@@ -211,7 +211,6 @@ class InputRDLT {
   //   this.user_input_to_evsa = rdlts.map((rdlt) => finalTransformR(rdlt));
 
   //   console.log(this.user_input_to_evsa);
-    
 
   //   // Compute eRU for R1
   //   const R1 = this.getR("R1");
@@ -396,7 +395,8 @@ class InputRDLT {
 
       for (const w of POSall) {
         for (const x of filteredGroup) {
-          const { antecedent: antecedent_x } = this.findMaximalAntecedentAndConsequent(x);
+          const { antecedent: antecedent_x } =
+            this.findMaximalAntecedentAndConsequent(x);
           if (!antecedent_x.includes(w)) {
             results.isValid = false;
             results.violations.push({
@@ -584,105 +584,101 @@ class InputRDLT {
     }
   }
 
+
+
   findMaximalAntecedentAndConsequent(x) {
     if (!this.sourceVertex) {
-      console.error("No source vertex found in the graph");
       return { antecedent: [], consequent: [] };
     }
 
-    // Step 1: Identify all looping arcs (back edges)
+    // Step 1: Get all back edges
     const loopingArcs = this.backEdges.map((edge) => {
       const [from, to] = edge.split(" -> ");
       return { from, to };
     });
 
-    console.log("Looping Arcs",loopingArcs);
-    
-
-    // Step 2-5: Find all paths from source to x and union them for antecedent_x
+    // Step 2: Calculate antecedent (all paths from source to x)
     const allPathsToX = this.findAllPaths(this.sourceVertex, x);
-    let antecedent_x = new Set();
-    allPathsToX.forEach((path) => {
-      path.forEach((vertex) => antecedent_x.add(vertex));
-    });
-    antecedent_x = Array.from(antecedent_x).sort();
+    let antecedent_x = [...new Set(allPathsToX.flat())].sort();
 
-    console.log("All Paths:",allPathsToX);
-    
-
-    // Step 6-10: Compute consequent_x using antecedent_x vertices + looping arc origins
-    let c = new Set(antecedent_x); // Start with antecedent_x
-
-    loopingArcs.forEach((arc) => {
-      if (antecedent_x.includes(arc.to)) {
-        // Create allowed set: antecedent_x + origin vertex (x7)
-        const allowedVertices = new Set([...antecedent_x, arc.from]);
-
-        console.log(allowedVertices);
-        
-
-        // Find paths using ONLY these vertices
-        const paths = this.findRestrictedPaths(
-          this.sourceVertex,
-          arc.from,
-          allowedVertices
-        );
-
-        console.log(paths);
-
-        paths.forEach((path) => {
-          path.forEach((vertex) => c.add(vertex));
-        });
-      }
-    });
-
-    // consequent_x is c \ antecedent_x (vertices in c but not in antecedent_x)
-    const consequent_x = Array.from(c)
-      .filter((vertex) => !antecedent_x.includes(vertex))
-      .sort();
-
-    
-      
-    return {
-      antecedent: antecedent_x,
-      consequent: consequent_x,
-    };
-    
-  }
-
-  findRestrictedPaths(from, to, allowedVertices) {
-    const paths = [];
+    // Step 3: Calculate consequent using the new rule
+    const consequent_x = new Set();
     const visited = new Set();
-    const currentPath = [];
+
+    const backEdgeOrigins = new Set(
+      this.backEdges.map((edge) => edge.split(" -> ")[0])
+    );
 
     const dfs = (current) => {
-      if (!allowedVertices.has(current)) return;
-
+      if (visited.has(current)) return;
       visited.add(current);
-      currentPath.push(current);
 
-      if (current === to) {
-        paths.push([...currentPath]);
-      } else {
-        const currentIndex = this.Vertices_List.indexOf(current);
-        for (let i = 0; i < this.Vertices_List.length; i++) {
-          const nextVertex = this.Vertices_List[i];
-          if (
-            this.adjacencyMatrix[currentIndex][i] === 1 &&
-            !visited.has(nextVertex) &&
-            allowedVertices.has(nextVertex)
-          ) {
-            dfs(nextVertex);
+      const currentIndex = this.Vertices_List.indexOf(current);
+
+      for (let i = 0; i < this.Vertices_List.length; i++) {
+        if (this.adjacencyMatrix[currentIndex][i] === 1) {
+          const next = this.Vertices_List[i];
+          if (!antecedent_x.includes(next)) {
+            consequent_x.add(next);
           }
+
+          // Stop if next is a backedge origin
+          if (backEdgeOrigins.has(next)) {
+            continue;
+          }
+
+          dfs(next);
         }
       }
-
-      currentPath.pop();
-      visited.delete(current);
     };
 
-    dfs(from);
-    return paths;
+    dfs(x);
+
+    return {
+      antecedent: antecedent_x,
+      consequent: [...consequent_x].sort(),
+    };
+  }
+
+  findConsequentWithBackedgeStop(x) {
+    if (!this.sourceVertex) {
+      return [];
+    }
+
+    const consequent = new Set();
+    const visited = new Set();
+
+    // Step 1: Find all vertices that are origins of back edges
+    const backEdgeOrigins = new Set(
+      this.backEdges.map((edge) => edge.split(" -> ")[0])
+    );
+
+    const dfs = (current) => {
+      if (visited.has(current)) return;
+      visited.add(current);
+
+      const currentIndex = this.Vertices_List.indexOf(current);
+
+      for (let i = 0; i < this.Vertices_List.length; i++) {
+        if (this.adjacencyMatrix[currentIndex][i] === 1) {
+          const next = this.Vertices_List[i];
+
+          consequent.add(next);
+
+          // If next is a back edge origin, include it and STOP
+          if (backEdgeOrigins.has(next)) {
+            continue;
+          }
+
+          // Otherwise, continue traversing
+          dfs(next);
+        }
+      }
+    };
+
+    dfs(x);
+
+    return [...consequent].sort();
   }
 
   findAllPaths(from, to) {
