@@ -585,60 +585,122 @@ class InputRDLT {
   }
 
 
+  // findMaximalAntecedentAndConsequent(x) {
+  //   if (!this.sourceVertex) {
+  //     return { antecedent: [], consequent: [] };
+  //   }
 
+  //   // Step 1: Get all back edges
+  //   const loopingArcs = this.backEdges.map((edge) => {
+  //     const [from, to] = edge.split(" -> ");
+  //     return { from, to };
+  //   });
+
+  //   // Step 2: Calculate antecedent (all paths from source to x)
+  //   const allPathsToX = this.findAllPaths(this.sourceVertex, x);
+  //   let antecedent_x = [...new Set(allPathsToX.flat())].sort();
+
+  //   // Step 3: Calculate consequent using the new rule
+  //   const consequent_x = new Set();
+  //   const visited = new Set();
+
+  //   const backEdgeOrigins = new Set(
+  //     this.backEdges.map((edge) => edge.split(" -> ")[0])
+  //   );
+
+  //   const dfs = (current) => {
+  //     if (visited.has(current)) return;
+  //     visited.add(current);
+
+  //     const currentIndex = this.Vertices_List.indexOf(current);
+
+  //     for (let i = 0; i < this.Vertices_List.length; i++) {
+  //       if (this.adjacencyMatrix[currentIndex][i] === 1) {
+  //         const next = this.Vertices_List[i];
+  //         if (!antecedent_x.includes(next)) {
+  //           consequent_x.add(next);
+  //         }
+
+  //         // Stop if next is a backedge origin
+  //         if (backEdgeOrigins.has(next)) {
+  //           continue;
+  //         }
+
+  //         dfs(next);
+  //       }
+  //     }
+  //   };
+
+  //   dfs(x);
+
+  //   return {
+  //     antecedent: antecedent_x,
+  //     consequent: [...consequent_x].sort(),
+  //   };
+  // }
   findMaximalAntecedentAndConsequent(x) {
     if (!this.sourceVertex) {
       return { antecedent: [], consequent: [] };
     }
-
-    // Step 1: Get all back edges
-    const loopingArcs = this.backEdges.map((edge) => {
-      const [from, to] = edge.split(" -> ");
-      return { from, to };
-    });
-
-    // Step 2: Calculate antecedent (all paths from source to x)
-    const allPathsToX = this.findAllPaths(this.sourceVertex, x);
-    let antecedent_x = [...new Set(allPathsToX.flat())].sort();
-
-    // Step 3: Calculate consequent using the new rule
-    const consequent_x = new Set();
-    const visited = new Set();
-
+  
+    // Step 1: Get all back edge origins
     const backEdgeOrigins = new Set(
-      this.backEdges.map((edge) => edge.split(" -> ")[0])
+      this.backEdges.map(edge => edge.split(" -> ")[0])
     );
-
-    const dfs = (current) => {
-      if (visited.has(current)) return;
+  
+    // Step 2: Get antecedent
+    const allPathsToX = this.findAllPaths(this.sourceVertex, x);
+    const antecedent_x = [...new Set(allPathsToX.flat())].sort();
+  
+    // Step 3: Find consequent: only vertices on paths from x that lead to a back edge origin
+    const consequent = new Set();
+    const visited = new Set();
+  
+    const dfs = (current, path = []) => {
+      if (visited.has(current)) return false;
       visited.add(current);
-
-      const currentIndex = this.Vertices_List.indexOf(current);
-
+      path.push(current);
+  
+      const idx = this.Vertices_List.indexOf(current);
+      let pathHitsBackedge = false;
+  
       for (let i = 0; i < this.Vertices_List.length; i++) {
-        if (this.adjacencyMatrix[currentIndex][i] === 1) {
+        if (this.adjacencyMatrix[idx][i] === 1) {
           const next = this.Vertices_List[i];
-          if (!antecedent_x.includes(next)) {
-            consequent_x.add(next);
-          }
-
-          // Stop if next is a backedge origin
           if (backEdgeOrigins.has(next)) {
-            continue;
+            pathHitsBackedge = true;
+            path.forEach(v => {
+              if (!antecedent_x.includes(v) && v !== x) {
+                consequent.add(v);
+              }
+            });
+            consequent.add(next);
+          } else {
+            const leadsToBackedge = dfs(next, [...path]);
+            if (leadsToBackedge) {
+              pathHitsBackedge = true;
+              path.forEach(v => {
+                if (!antecedent_x.includes(v) && v !== x) {
+                  consequent.add(v);
+                }
+              });
+            }
           }
-
-          dfs(next);
         }
       }
+  
+      visited.delete(current);
+      return pathHitsBackedge;
     };
-
+  
     dfs(x);
-
+  
     return {
       antecedent: antecedent_x,
-      consequent: [...consequent_x].sort(),
+      consequent: [...consequent].sort()
     };
   }
+  
 
   findConsequentWithBackedgeStop(x) {
     if (!this.sourceVertex) {
